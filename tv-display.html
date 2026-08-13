@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nomnom Canteen — Order Status Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4ecd3; --panel:#fffdf7; --panel-2:#f7ecd6;
+  --line:rgba(40,28,8,0.14); --text:#2A2013; --text-dim:#8a7a5c;
+  --blue:#fdab01; --blue-bright:#b8860b; --blue-deep:#8a5c00; --green:#1E9E64;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;height:100vh;height:100dvh;overflow:hidden;}
+h1,.display{font-family:'Poppins',sans-serif;font-weight:800;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 40px;border-bottom:2px solid var(--line);
+  background:linear-gradient(180deg, rgba(253,171,1,0.08), transparent);
+}
+.brand{display:flex;align-items:center;gap:16px;}
+.brand-badge{width:52px;height:52px;border-radius:14px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.brand-badge img{width:100%;height:100%;object-fit:contain;padding:5px;}
+.brand h1{font-size:24px;margin:0;}
+.brand .sub{font-family:'JetBrains Mono';font-size:11px;color:var(--text-dim);margin-top:3px;}
+.clock{font-family:'JetBrains Mono';font-size:26px;color:var(--blue-bright);}
+
+.layout{display:grid;grid-template-columns:1.6fr 1fr;height:calc(100vh - 96px);}
+.ready-panel{padding:30px 40px;overflow-y:auto;}
+.ready-title{display:flex;align-items:center;gap:14px;margin-bottom:26px;}
+.ready-title .badge{background:var(--green);color:#06210F;font-family:'JetBrains Mono';font-weight:700;font-size:13px;padding:6px 14px;border-radius:999px;}
+.ready-title h2{font-size:28px;margin:0;}
+
+.ready-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px;}
+.ready-tile{
+  background:linear-gradient(160deg, var(--panel-2), var(--panel));
+  border:2px solid rgba(30,158,100,0.5);
+  border-radius:18px;padding:22px 10px;text-align:center;
+  animation:glow 2.2s infinite;
+}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(30,158,100,0.0);}50%{box-shadow:0 0 26px rgba(30,158,100,0.35);}}
+.ready-tile .num{font-family:'JetBrains Mono';font-weight:700;font-size:38px;color:var(--green);}
+.ready-tile .nm{font-size:11.5px;color:var(--text-dim);margin-top:6px;}
+.empty-state{color:var(--text-dim);font-family:'JetBrains Mono';font-size:14px;text-align:center;padding:60px 20px;}
+
+.prep-panel{background:var(--panel);border-left:2px solid var(--line);padding:30px 30px;overflow-y:auto;}
+.prep-title{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
+.prep-title .badge{background:var(--blue);font-family:'JetBrains Mono';font-weight:700;font-size:12px;padding:5px 12px;border-radius:999px;}
+.prep-title h2{font-size:19px;margin:0;color:var(--text-dim);}
+.prep-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--panel-2);border-radius:10px;margin-bottom:10px;}
+.prep-row .num{font-family:'JetBrains Mono';font-weight:700;font-size:18px;color:var(--blue-bright);}
+.prep-row .nm{font-size:12px;color:var(--text-dim);}
+
+footer{position:fixed;bottom:0;left:0;right:0;text-align:center;padding:10px;font-family:'JetBrains Mono';font-size:10px;color:var(--text-dim);border-top:1px solid var(--line);background:var(--bg);}
+
+/* ================= RESPONSIVE ================= */
+/* Below TV/desktop widths, the fixed-height two-column layout no longer fits;
+   let it scroll and stack instead of clipping content. */
+@media(max-width:1000px){
+  body{height:auto;min-height:100vh;min-height:100dvh;overflow-y:auto;overflow-x:hidden;}
+  .layout{grid-template-columns:1fr;height:auto;}
+  .prep-panel{border-left:none;border-top:2px solid var(--line);}
+  footer{position:static;margin-top:8px;}
+}
+@media(max-width:700px){
+  .topbar{padding:16px 20px;flex-wrap:wrap;row-gap:8px;}
+  .brand{gap:12px;}
+  .brand-badge{width:40px;height:40px;font-size:15px;}
+  .brand h1{font-size:18px;}
+  .brand .sub{font-size:9.5px;}
+  .clock{font-size:19px;}
+  .ready-panel,.prep-panel{padding:20px;}
+  .ready-title h2{font-size:20px;}
+  .ready-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+  .ready-tile{padding:16px 8px;}
+  .ready-tile .num{font-size:28px;}
+  .prep-title h2{font-size:16px;}
+}
+@media(max-width:420px){
+  .ready-grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px;}
+  .brand .sub{display:none;}
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-badge"><img src="logo.png" alt="Nomnom Canteen logo"></div>
+    <div>
+      <h1>Order Status Board</h1>
+      <div class="sub">Nomnom Canteen Ordering — Talon Dos Campus</div>
+    </div>
+  </div>
+  <div class="clock mono" id="clock">--:--:--</div>
+</div>
+
+<div id="soundBanner" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(42,32,19,0.55);align-items:center;justify-content:center;text-align:center;">
+  <div style="background:var(--panel);border-radius:20px;padding:34px 42px;max-width:360px;">
+    <div style="font-size:34px;margin-bottom:10px;">🔔</div>
+    <div style="font-family:'Poppins';font-weight:800;font-size:17px;margin-bottom:8px;">Enable order chime</div>
+    <div style="font-family:'Inter';font-size:13px;color:var(--text-dim);margin-bottom:18px;">Browsers require one tap before this screen can play sound. Tap anywhere to turn on the bell for new and ready orders.</div>
+    <button onclick="dismissSoundBanner()" style="border:none;border-radius:10px;padding:10px 22px;font-weight:700;font-family:'Inter';background:var(--blue);color:white;cursor:pointer;">Enable Sound</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="ready-panel">
+    <div class="ready-title"><span class="badge">READY</span><h2>Ready for Pick-up</h2></div>
+    <div class="ready-grid" id="readyGrid"></div>
+  </div>
+  <div class="prep-panel">
+    <div class="prep-title"><span class="badge">IN PROGRESS</span><h2>Now Preparing</h2></div>
+    <div id="prepList"></div>
+  </div>
+</div>
+
+<footer>RESEARCH PROTOTYPE · LAS PIÑAS CITY NATIONAL SENIOR HIGH SCHOOL — TALON DOS CAMPUS</footer>
+
+<script>
+const KEYS = { orders:'scp_orders' };
+
+/* ================= STORAGE (Firebase Realtime Database) ================= */
+// Paste your Firebase project's config below (Firebase Console → Project
+// settings → General → Your apps → SDK setup and configuration).
+// This SAME config object must be pasted into all four files (kiosk.html,
+// admin.html, staff-display.html, tv-display.html) so they all read/write
+// the same database.
+const firebaseConfig = {
+  apiKey: "AIzaSyB5Z9A_YAp6ClzJgbq-UkR8X0_XLQxmWtw",
+  authDomain: "scp-website-af585.firebaseapp.com",
+  databaseURL: "https://scp-website-af585-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "scp-website-af585",
+  storageBucket: "scp-website-af585.firebasestorage.app",
+  messagingSenderId: "232141944184",
+  appId: "1:232141944184:web:fbae0b26fac4367152848d",
+  measurementId: "G-4ZXSR4B78P"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const DB_ROOT = 'scp'; // all canteen data lives under this node
+
+async function kvGet(key){
+  try{
+    const snap = await db.ref(DB_ROOT + '/' + key).get();
+    return snap.exists() ? snap.val() : null;
+  }catch(e){ console.error('Firebase read failed:', e); return null; }
+}
+
+async function loadOrders(){
+  const v = await kvGet(KEYS.orders);
+  try{ return v ? JSON.parse(v) : []; }catch(e){ return []; }
+}
+
+// Instant refresh on ANY device the moment data changes in Firebase, instead
+// of waiting for the next poll.
+db.ref(DB_ROOT).on('value', ()=>{ render(); });
+function escapeHtml(str){ return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ================= SOUND ALERTS ================= */
+// Synthesized two-note chime (no external audio file needed). Browsers block
+// audio until the page has seen at least one user interaction, so we grab
+// the first click/tap anywhere on the page to unlock it. On a TV that never
+// gets touched, sound will only start working once someone taps the screen.
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+document.addEventListener('click', ensureAudio);
+document.addEventListener('touchstart', ensureAudio);
+
+function dismissSoundBanner(){
+  ensureAudio();
+  const el = document.getElementById('soundBanner');
+  if(el) el.style.display = 'none';
+}
+// Show the "tap to enable sound" banner shortly after load, since this screen
+// is normally unattended and never receives the click a browser needs before
+// it will allow audio to play.
+window.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(()=>{
+    const ctx = ensureAudio();
+    if(!ctx || ctx.state === 'suspended'){
+      const el = document.getElementById('soundBanner');
+      if(el) el.style.display = 'flex';
+    }
+  }, 800);
+});
+// Any real tap on the screen also hides the banner and unlocks audio.
+document.addEventListener('click', dismissSoundBanner);
+document.addEventListener('touchstart', dismissSoundBanner);
+
+function playBell(){
+  const ctx = ensureAudio();
+  if(!ctx) return;
+  const now = ctx.currentTime;
+  [880, 1318.51].forEach((freq, i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t0 = now + i*0.16;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.35, t0+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.55);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0+0.6);
+  });
+}
+
+// Tracks each order's last-seen status so we can tell *new* placements and
+// *new* ready-for-pickup transitions apart from orders we've already alerted on.
+let knownOrderStatus = null;
+function checkForSoundEvents(orders){
+  if(knownOrderStatus === null){
+    // First load: just record current state, don't alert on pre-existing orders.
+    knownOrderStatus = {};
+    orders.forEach(o=>{ knownOrderStatus[o.id] = o.status; });
+    return;
+  }
+  let newPlaced = false, newReady = false;
+  orders.forEach(o=>{
+    const prev = knownOrderStatus[o.id];
+    if(prev === undefined && o.status === 'placed') newPlaced = true;
+    if(prev !== undefined && prev !== 'ready' && o.status === 'ready') newReady = true;
+  });
+  knownOrderStatus = {};
+  orders.forEach(o=>{ knownOrderStatus[o.id] = o.status; });
+  if(newPlaced || newReady) playBell();
+}
+
+async function render(){
+  const orders = await loadOrders();
+  checkForSoundEvents(orders);
+  const ready = orders.filter(o=>o.status==='ready').sort((a,b)=>a.createdAt-b.createdAt);
+  const preparing = orders.filter(o=>o.status==='placed' || o.status==='preparing').sort((a,b)=>a.createdAt-b.createdAt);
+
+  document.getElementById('readyGrid').innerHTML = ready.length
+    ? ready.map(o=>`<div class="ready-tile"><div class="num">${o.ticket}</div><div class="nm">${escapeHtml(o.name)}</div></div>`).join('')
+    : `<div class="empty-state">No orders ready yet.<br>Please wait for your number to appear here.</div>`;
+
+  document.getElementById('prepList').innerHTML = preparing.length
+    ? preparing.map(o=>`<div class="prep-row"><span class="num">${o.ticket}</span><span class="nm">${escapeHtml(o.name)}</span></div>`).join('')
+    : `<div class="empty-state" style="padding:30px 10px;">Nothing in progress.</div>`;
+}
+
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+render();
+setInterval(render, 2000);
+</script>
+</body>
+</html>

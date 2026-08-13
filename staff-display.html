@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nomnom Staff Console — Order Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4ecd3; --bg-alt:#e9dcb8; --panel:#fffdf7; --panel-2:#f7ecd6;
+  --line:rgba(40,28,8,0.14); --text:#2A2013; --text-dim:#8a7a5c;
+  --blue:#fdab01; --blue-bright:#b8860b; --blue-deep:#8a5c00;
+  --green:#1E9E64; --amber:#D9730D; --red:#E5484D;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+h1,h2,.display{font-family:'Poppins',sans-serif;font-weight:800;letter-spacing:-0.01em;}
+.mono{font-family:'JetBrains Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 26px;border-bottom:1px solid var(--line);background:rgba(255,253,246,0.8);position:sticky;top:0;z-index:10;}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-badge{width:40px;height:40px;border-radius:10px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.brand-badge img{width:100%;height:100%;object-fit:contain;padding:4px;}
+.brand-titles .name{font-size:16px;font-weight:800;font-family:'Poppins';}
+.brand-titles .sub{font-family:'JetBrains Mono';font-size:10px;color:var(--text-dim);}
+.clock{font-family:'JetBrains Mono';font-size:13px;color:var(--text-dim);}
+
+.board{max-width:1400px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;min-height:260px;}
+.col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line);}
+.col-head h2{font-size:15px;margin:0;}
+.count-badge{font-family:'JetBrains Mono';font-size:12px;background:var(--panel-2);border-radius:999px;padding:3px 10px;color:var(--text-dim);}
+.col.new .count-badge{color:var(--amber);}
+.col.preparing .count-badge{color:var(--blue-bright);}
+.col.ready .count-badge{color:var(--green);}
+
+.ocard{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:12px;}
+.ocard .ohead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.ocard .ticket{font-family:'JetBrains Mono';font-weight:700;font-size:19px;color:var(--blue-bright);}
+.ocard .time{font-family:'JetBrains Mono';font-size:10.5px;color:var(--text-dim);}
+.ocard .cust{font-size:12.5px;color:var(--text-dim);margin-bottom:8px;}
+.ocard .items{font-size:12.5px;margin-bottom:10px;line-height:1.6;}
+.ocard .items div{display:flex;justify-content:space-between;}
+.ocard .pay{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:'JetBrains Mono';padding:4px 9px;border-radius:999px;background:var(--bg-alt);color:var(--text-dim);margin-bottom:10px;}
+.ocard .pay.verified{color:var(--green);}
+.ocard .actions{display:flex;gap:8px;flex-wrap:wrap;}
+.bt{border:none;border-radius:9px;padding:9px 13px;font-weight:700;font-size:12.5px;font-family:'Inter';}
+.bt-primary{background:var(--blue);color:white;}
+.bt-ready{background:var(--green);color:#06210F;}
+.bt-done{background:var(--panel);border:1.5px solid var(--line);color:var(--text);}
+.bt-cancel{background:transparent;border:1.5px solid var(--red);color:var(--red);}
+.empty-col{color:var(--text-dim);font-size:12.5px;text-align:center;padding:30px 10px;font-family:'JetBrains Mono';}
+
+/* ================= RESPONSIVE ================= */
+@media(max-width:1000px){
+  .board{grid-template-columns:1fr 1fr;padding:20px;}
+}
+@media(max-width:720px){
+  .board{grid-template-columns:1fr;gap:14px;padding:16px;}
+  .topbar{padding:14px 16px;flex-wrap:wrap;row-gap:8px;}
+  .brand-badge{width:34px;height:34px;font-size:12px;}
+  .brand-titles .name{font-size:14px;}
+  .brand-titles .sub{font-size:9px;}
+  .clock{font-size:12px;}
+  .col{padding:13px;min-height:auto;}
+  .ocard{padding:12px;}
+  .ocard .ticket{font-size:17px;}
+  .bt{padding:10px 13px;font-size:12.5px;flex:1;min-width:110px;}
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-badge"><img src="logo.png" alt="Nomnom Canteen logo"></div>
+    <div class="brand-titles">
+      <div class="name">Staff Console — Order Queue</div>
+      <div class="sub">Nomnom Canteen Ordering</div>
+    </div>
+  </div>
+  <div class="clock mono" id="clock">--:--:--</div>
+</div>
+
+<div class="board" id="board">
+  <div class="col new">
+    <div class="col-head"><h2>🆕 New Orders</h2><span class="count-badge" id="cNew">0</span></div>
+    <div id="colNew"></div>
+  </div>
+  <div class="col preparing">
+    <div class="col-head"><h2>👨‍🍳 Preparing</h2><span class="count-badge" id="cPrep">0</span></div>
+    <div id="colPrep"></div>
+  </div>
+  <div class="col ready">
+    <div class="col-head"><h2>🔔 Ready for Pick-up</h2><span class="count-badge" id="cReady">0</span></div>
+    <div id="colReady"></div>
+  </div>
+</div>
+
+<script>
+const KEYS = { orders:'scp_orders', menu:'scp_menu', settings:'scp_settings' };
+
+/* ================= STORAGE (Firebase Realtime Database) ================= */
+// Paste your Firebase project's config below (Firebase Console → Project
+// settings → General → Your apps → SDK setup and configuration).
+// This SAME config object must be pasted into all four files (kiosk.html,
+// admin.html, staff-display.html, tv-display.html) so they all read/write
+// the same database.
+const firebaseConfig = {
+  apiKey: "AIzaSyB5Z9A_YAp6ClzJgbq-UkR8X0_XLQxmWtw",
+  authDomain: "scp-website-af585.firebaseapp.com",
+  databaseURL: "https://scp-website-af585-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "scp-website-af585",
+  storageBucket: "scp-website-af585.firebasestorage.app",
+  messagingSenderId: "232141944184",
+  appId: "1:232141944184:web:fbae0b26fac4367152848d",
+  measurementId: "G-4ZXSR4B78P"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const DB_ROOT = 'scp'; // all canteen data lives under this node
+
+async function kvGet(key){
+  try{
+    const snap = await db.ref(DB_ROOT + '/' + key).get();
+    return snap.exists() ? snap.val() : null;
+  }catch(e){ console.error('Firebase read failed:', e); return null; }
+}
+async function kvSet(key, value){
+  try{ await db.ref(DB_ROOT + '/' + key).set(value); }
+  catch(e){ console.error('Firebase write failed:', e); }
+}
+
+async function loadOrders(){
+  const v = await kvGet(KEYS.orders);
+  try{ return v ? JSON.parse(v) : []; }catch(e){ return []; }
+}
+async function saveOrders(orders){
+  await kvSet(KEYS.orders, JSON.stringify(orders));
+}
+
+// Instant refresh on ANY device the moment data changes in Firebase, instead
+// of waiting for the next poll.
+db.ref(DB_ROOT).on('value', ()=>{ render(); });
+
+function escapeHtml(str){ return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ================= SOUND ALERTS ================= */
+// Synthesized two-note chime (no external audio file needed). Browsers block
+// audio until the page has seen at least one user interaction, so we grab
+// the first click/tap anywhere on the page to unlock it.
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+document.addEventListener('click', ensureAudio);
+document.addEventListener('touchstart', ensureAudio);
+
+function playBell(){
+  const ctx = ensureAudio();
+  if(!ctx) return;
+  const now = ctx.currentTime;
+  [880, 1318.51].forEach((freq, i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    const t0 = now + i*0.16;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.35, t0+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.55);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0+0.6);
+  });
+}
+
+// Tracks each order's last-seen status so we can tell *new* placements and
+// *new* ready-for-pickup transitions apart from orders we've already alerted on.
+let knownOrderStatus = null;
+function checkForSoundEvents(orders){
+  if(knownOrderStatus === null){
+    // First load: just record current state, don't alert on pre-existing orders.
+    knownOrderStatus = {};
+    orders.forEach(o=>{ knownOrderStatus[o.id] = o.status; });
+    return;
+  }
+  let newPlaced = false, newReady = false;
+  orders.forEach(o=>{
+    const prev = knownOrderStatus[o.id];
+    if(prev === undefined && o.status === 'placed') newPlaced = true;
+    if(prev !== undefined && prev !== 'ready' && o.status === 'ready') newReady = true;
+  });
+  knownOrderStatus = {};
+  orders.forEach(o=>{ knownOrderStatus[o.id] = o.status; });
+  if(newPlaced || newReady) playBell();
+}
+
+function timeAgo(ts){
+  const mins = Math.max(0, Math.floor((Date.now()-ts)/60000));
+  if(mins<1) return 'just now';
+  if(mins===1) return '1 min ago';
+  return mins+' min ago';
+}
+
+function orderCard(o, actionsHtml){
+  const itemsHtml = o.items.map(it=>`<div><span>${it.qty}× ${escapeHtml(it.name)}</span><span class="mono">₱${it.price*it.qty}</span></div>`).join('');
+  return `
+  <div class="ocard">
+    <div class="ohead"><span class="ticket">${o.ticket}</span><span class="time">${timeAgo(o.createdAt)}</span></div>
+    <div class="cust">${escapeHtml(o.name)} ${o.section ? '· '+escapeHtml(o.section):''}</div>
+    <div class="items">${itemsHtml}</div>
+    <div class="pay">💳 Cash on pick-up</div>
+    <div class="actions">${actionsHtml}</div>
+  </div>`;
+}
+
+async function render(){
+  const orders = await loadOrders();
+  checkForSoundEvents(orders);
+  const news = orders.filter(o=>o.status==='placed').sort((a,b)=>a.createdAt-b.createdAt);
+  const preps = orders.filter(o=>o.status==='preparing').sort((a,b)=>a.createdAt-b.createdAt);
+  const readys = orders.filter(o=>o.status==='ready').sort((a,b)=>a.createdAt-b.createdAt);
+
+  document.getElementById('cNew').textContent = news.length;
+  document.getElementById('cPrep').textContent = preps.length;
+  document.getElementById('cReady').textContent = readys.length;
+
+  document.getElementById('colNew').innerHTML = news.length ? news.map(o=>orderCard(o, `
+      <button class="bt bt-primary" onclick="advance('${o.id}','preparing')">Accept & Prepare</button>
+      <button class="bt bt-cancel" onclick="cancelOrder('${o.id}')">Cancel</button>
+    `)).join('') : `<div class="empty-col">No new orders.</div>`;
+
+  document.getElementById('colPrep').innerHTML = preps.length ? preps.map(o=>orderCard(o, `
+      <button class="bt bt-ready" onclick="advance('${o.id}','ready')">Mark Ready</button>
+      <button class="bt bt-cancel" onclick="cancelOrder('${o.id}')">Cancel</button>
+    `)).join('') : `<div class="empty-col">Nothing being prepared.</div>`;
+
+  document.getElementById('colReady').innerHTML = readys.length ? readys.map(o=>orderCard(o, `
+      <button class="bt bt-done" onclick="advance('${o.id}','completed')">Mark Picked Up</button>
+    `)).join('') : `<div class="empty-col">No orders ready.</div>`;
+}
+
+async function advance(id, status){
+  const orders = await loadOrders();
+  const idx = orders.findIndex(o=>o.id===id);
+  if(idx===-1) return;
+  orders[idx].status = status;
+  await saveOrders(orders);
+  render();
+}
+async function cancelOrder(id){
+  if(!confirm('Cancel this order?')) return;
+  const orders = await loadOrders();
+  const idx = orders.findIndex(o=>o.id===id);
+  if(idx===-1) return;
+  orders[idx].status = 'cancelled';
+  await saveOrders(orders);
+  render();
+}
+
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+render();
+setInterval(render, 2000);
+</script>
+</body>
+</html>
